@@ -1,0 +1,284 @@
+{
+  "object": {
+    "id": "in_0H14q8GwvziWDQizfJGpgqf0",
+    "object": "invoice",
+    "account_country": "AU",
+    "account_name": "IT Solver Pty Ltd",
+    "amount_due": 10000,
+    "amount_paid": 10000,
+    "amount_remaining": 0,
+    "application_fee_amount": null,
+    "attempt_count": 1,
+    "attempted": true,
+    "auto_advance": false,
+    "billing_reason": "subscription_create",
+    "charge": "ch_0H14q9GwvziWDQizsEP5Zjic",
+    "collection_method": "charge_automatically",
+    "created": 1593844028,
+    "currency": "aud",
+    "custom_fields": null,
+    "customer": "cus_EclGGlxHq0d0dz",
+    "customer_address": null,
+    "customer_email": "mclauchlangus@gmail.com",
+    "customer_name": "Test User",
+    "customer_phone": null,
+    "customer_shipping": {
+      "address": {
+        "city": "",
+        "country": "",
+        "line1": "",
+        "line2": "",
+        "postal_code": "",
+        "state": ""
+      },
+      "name": "Test User",
+      "phone": ""
+    },
+    "customer_tax_exempt": "none",
+    "customer_tax_ids": [],
+    "default_payment_method": null,
+    "default_source": null,
+    "default_tax_rates": [
+      {
+        "id": "txr_0Eh78mGwvziWDQiz631U8Uzk",
+        "object": "tax_rate",
+        "active": true,
+        "created": 1559533640,
+        "description": "GST 10% inclusive",
+        "display_name": "GST",
+        "inclusive": true,
+        "jurisdiction": "Australia",
+        "livemode": false,
+        "metadata": {},
+        "percentage": 10
+      }
+    ],
+    "description": "Thanks for your business.",
+    "discount": null,
+    "due_date": null,
+    "ending_balance": 0,
+    "footer": null,
+    "hosted_invoice_url": "https://pay.stripe.com/invoice/acct_1S0dGwvziWDQizJ1KM2H/invst_HaFKWQLJeczBQbryYZl0Nm2PjvTuqsQ",
+    "invoice_pdf": "https://pay.stripe.com/invoice/acct_1S0dGwvziWDQizJ1KM2H/invst_HaFKWQLJeczBQbryYZl0Nm2PjvTuqsQ/pdf",
+    "lines": {
+      "object": "list",
+      "data": [
+        {
+          "id": "il_0H14q8GwvziWDQizx8h12tYc",
+          "object": "line_item",
+          "amount": 0,
+          "currency": "aud",
+          "description": "3 user × Premium (Tier 1 at $0.00 / month)",
+          "discountable": true,
+          "livemode": false,
+          "metadata": {},
+          "period": {
+            "end": 1596522427,
+            "start": 1593844027
+          },
+          "plan": {
+            "id": "price_0H14oEGwvziWDQizqWFTb0tc",
+            "object": "plan",
+            "active": true,
+            "aggregate_usage": null,
+            "amount": null,
+            "amount_decimal": null,
+            "billing_scheme": "tiered",
+            "created": 1593843910,
+            "currency": "aud",
+            "interval": "month",
+            "interval_count": 1,
+            "livemode": false,
+            "metadata": {},
+            "nickname": "Support Plan Premium",
+            "product": "prod_HBccW3bYQUP5RU",
+            "tiers": [
+              {
+                "flat_amount": 10000,
+                "flat_amount_decimal": "10000",
+                "unit_amount": 0,
+                "unit_amount_decimal": "0",
+                "up_to": 4
+              },
+              {
+                "flat_amount": null,
+                "flat_amount_decimal": null,
+                "unit_amount": 2500,
+                "unit_amount_decimal": "2500",
+                "up_to": null
+              }
+            ],
+            "tiers_mode": "graduated",
+            "transform_usage": null,
+            "trial_period_days": null,
+            "usage_type": "licensed"
+          },
+          "price": {
+            "id": "price_0H14oEGwvziWDQizqWFTb0tc",
+            "object": "price",
+            "active": true,
+            "billing_scheme": "tiered",
+            "created": 1593843910,
+            "currency": "aud",
+            "livemode": false,
+            "lookup_key": null,
+            "metadata": {},
+            "nickname": "Support Plan Premium",
+            "product": "prod_HBccW3bYQUP5RU",
+            "recurring": {
+              "aggregate_usage": null,
+              "interval": "month",
+              "interval_count": 1,
+              "trial_period_days": null,
+              "usage_type": "licensed"
+            },
+            "tiers_mode": "graduated",
+            "transform_quantity": null,
+            "type": "recurring",
+            "unit_amount": null,
+            "unit_amount_decimal": null
+          },
+          "proration": false,
+          "quantity": 3,
+          "subscription": "sub_HaFKK9LA0zfnLG",
+          "subscription_item": "si_HaFKlHVwLDtCDK",
+          "tax_amounts": [
+            {
+              "amount": 0,
+              "inclusive": true,
+              "tax_rate": "txr_0Eh78mGwvziWDQiz631U8Uzk"
+            }
+          ],
+          "tax_rates": [],
+          "type": "subscription"
+        },
+        {
+          "id": "il_0H14q9GwvziWDQizSKr129al",
+          "object": "line_item",
+          "amount": 10000,
+          "currency": "aud",
+          "description": "Premium (Tier 1 at $100.00 / month)",
+          "discountable": true,
+          "livemode": false,
+          "metadata": {},
+          "period": {
+            "end": 1596522427,
+            "start": 1593844027
+          },
+          "plan": {
+            "id": "price_0H14oEGwvziWDQizqWFTb0tc",
+            "object": "plan",
+            "active": true,
+            "aggregate_usage": null,
+            "amount": null,
+            "amount_decimal": null,
+            "billing_scheme": "tiered",
+            "created": 1593843910,
+            "currency": "aud",
+            "interval": "month",
+            "interval_count": 1,
+            "livemode": false,
+            "metadata": {},
+            "nickname": "Support Plan Premium",
+            "product": "prod_HBccW3bYQUP5RU",
+            "tiers": [
+              {
+                "flat_amount": 10000,
+                "flat_amount_decimal": "10000",
+                "unit_amount": 0,
+                "unit_amount_decimal": "0",
+                "up_to": 4
+              },
+              {
+                "flat_amount": null,
+                "flat_amount_decimal": null,
+                "unit_amount": 2500,
+                "unit_amount_decimal": "2500",
+                "up_to": null
+              }
+            ],
+            "tiers_mode": "graduated",
+            "transform_usage": null,
+            "trial_period_days": null,
+            "usage_type": "licensed"
+          },
+          "price": {
+            "id": "price_0H14oEGwvziWDQizqWFTb0tc",
+            "object": "price",
+            "active": true,
+            "billing_scheme": "tiered",
+            "created": 1593843910,
+            "currency": "aud",
+            "livemode": false,
+            "lookup_key": null,
+            "metadata": {},
+            "nickname": "Support Plan Premium",
+            "product": "prod_HBccW3bYQUP5RU",
+            "recurring": {
+              "aggregate_usage": null,
+              "interval": "month",
+              "interval_count": 1,
+              "trial_period_days": null,
+              "usage_type": "licensed"
+            },
+            "tiers_mode": "graduated",
+            "transform_quantity": null,
+            "type": "recurring",
+            "unit_amount": null,
+            "unit_amount_decimal": null
+          },
+          "proration": false,
+          "quantity": 0,
+          "subscription": "sub_HaFKK9LA0zfnLG",
+          "subscription_item": "si_HaFKlHVwLDtCDK",
+          "tax_amounts": [
+            {
+              "amount": 909,
+              "inclusive": true,
+              "tax_rate": "txr_0Eh78mGwvziWDQiz631U8Uzk"
+            }
+          ],
+          "tax_rates": [],
+          "type": "subscription"
+        }
+      ],
+      "has_more": false,
+      "total_count": 2,
+      "url": "/v1/invoices/in_0H14q8GwvziWDQizfJGpgqf0/lines"
+    },
+    "livemode": false,
+    "metadata": {},
+    "next_payment_attempt": null,
+    "number": "1681C3D-0077",
+    "paid": true,
+    "payment_intent": "pi_0H14q8GwvziWDQizfe29oVFe",
+    "period_end": 1593844027,
+    "period_start": 1593844027,
+    "post_payment_credit_notes_amount": 0,
+    "pre_payment_credit_notes_amount": 0,
+    "receipt_number": null,
+    "starting_balance": 0,
+    "statement_descriptor": null,
+    "status": "paid",
+    "status_transitions": {
+      "finalized_at": 1593844027,
+      "marked_uncollectible_at": null,
+      "paid_at": 1593844027,
+      "voided_at": null
+    },
+    "subscription": "sub_HaFKK9LA0zfnLG",
+    "subtotal": 10000,
+    "tax": 909,
+    "tax_percent": null,
+    "total": 10000,
+    "total_tax_amounts": [
+      {
+        "amount": 909,
+        "inclusive": true,
+        "tax_rate": "txr_0Eh78mGwvziWDQiz631U8Uzk"
+      }
+    ],
+    "transfer_data": null,
+    "webhooks_delivered_at": null
+  }
+}
