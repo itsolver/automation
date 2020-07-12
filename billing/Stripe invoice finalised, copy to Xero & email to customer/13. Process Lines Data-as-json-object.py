@@ -1,12 +1,12 @@
+import json
 
 # Local test data
 
-# with open('sample-tiered-invoice.json') as json_file:
-#     data = json.load(json_file)
+with open('sample-tiered-invoice.json') as json_file:
+    data = json.load(json_file)
 
 # Zapier load Stripe raw data for finalized invoice
-import json
-data = json.loads(input_data['j'])
+#data = json.loads(input_data['j'])
 
 quantity_corrected = []
 amount_decimal = []
@@ -17,7 +17,8 @@ amounts = []
 for j, line in enumerate(data['object']['lines']['data']):
     proration = line['proration']
     tiers_mode = line['plan']['tiers_mode']
-    description = line['plan']['nickname']
+    nickname = line['plan']['nickname']
+    description = line['description']
     quantity = line['quantity']
     amount = None
 
@@ -27,10 +28,10 @@ for j, line in enumerate(data['object']['lines']['data']):
             tiers_up_to = tier['up_to']
             tiers_unit_amount = tier['unit_amount']
             tiers_flat_up_to = line['plan']['tiers'][0]['up_to']
-            # Flat rate tier 1
+            # Tier 1 usage
             if quantity == 0:
                 print('Skipping invoice line with 0 quantity')
-            elif (tiers_flat_amount != None) and (tiers_up_to != None) and (quantity > 0):
+            elif "Tier 1" in description and (tiers_flat_amount != None) and (tiers_up_to != None) and (quantity > 0):
                 description = description + '. Flat fee for first ' + \
                     str(tiers_up_to) + ' users'
                 quantity_flat_rate = 1
@@ -38,15 +39,11 @@ for j, line in enumerate(data['object']['lines']['data']):
                 descriptions.append(description)
                 quantities.append(quantity_flat_rate)
                 amounts.append(amount)
-            # usage under tier 1
-            elif quantity < tiers_flat_up_to:
-                print('Skipping')
             # Tier 2 usage
-            elif (tiers_flat_amount == None) and (tiers_up_to == None) and (quantity > 0):
+            elif "Tier 2" in description and (tiers_flat_amount == None) and (tiers_up_to == None) and (quantity > 0):
                 description = str(line['plan']['tiers']
                                   [0]['up_to']+1) + ' and above'
-                quantity_tier_2 = line['quantity'] - \
-                    line['plan']['tiers'][0]['up_to']
+                quantity_tier_2 = line['quantity']
                 amount = tiers_unit_amount/100
                 descriptions.append(description)
                 quantities.append(quantity_tier_2)
