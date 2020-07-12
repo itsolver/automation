@@ -6,9 +6,31 @@ Stripe Recipe.
 Python 3.6 or newer required.
 """
 
+import datetime
+from decimal import Decimal
+from xero_python.utils import getvalue
+from xero_python.identity import IdentityApi
+from xero_python.exceptions import AccountingBadRequestException
+from xero_python.api_client.oauth2 import OAuth2Token
+from xero_python.api_client.configuration import Configuration
+from xero_python.api_client import ApiClient, serialize
+from xero_python.accounting import AccountingApi, ContactPerson, Contact, Contacts, Invoice, Invoices, LineItem
+from flask_session import Session
+from flask_oauthlib.contrib.client import OAuth, OAuth2Application
+from flask import Flask, url_for, render_template, session, redirect, json, send_file
+from logging.config import dictConfig
+from io import BytesIO
+from functools import wraps
 import stripe
 import json
 import os
+from utils import jsonify, serialize_model
+
+
+import time
+import xero_python
+from xero_python.exceptions import ApiException
+from pprint import pprint
 
 from flask import Flask, render_template, jsonify, request, send_from_directory
 from dotenv import load_dotenv, find_dotenv
@@ -18,15 +40,218 @@ load_dotenv(find_dotenv())
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 stripe.api_version = os.getenv('STRIPE_API_VERSION')
 
-static_dir = str(os.path.abspath(os.path.join(
-    __file__, "..", os.getenv("STATIC_DIR"))))
-app = Flask(__name__, static_folder=static_dir,
-            static_url_path="", template_folder=static_dir)
+# Xero-Python-OAuth2
+
+# import logging_settings
+
+# dictConfig(logging_settings.default_settings)
+
+# configure main flask application
+app = Flask(__name__)
+app.config.from_object("default_settings")
+env = os.getenv('ENV')
+
+if env != "production":
+    # allow oauth2 loop to run over http (used for local testing only)
+    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
+# configure persistent session cache
+Session(app)
+
+# configure flask-oauthlib application
+# TODO fetch config from https://identity.xero.com/.well-known/openid-configuration #1
+oauth = OAuth(app)
+xero = oauth.remote_app(
+    name="xero",
+    version="2",
+    client_id=os.getenv('CLIENT_ID'),
+    client_secret=os.getenv('CLIENT_SECRET'),
+    endpoint_url="https://api.xero.com/",
+    authorization_url="https://login.xero.com/identity/connect/authorize",
+    access_token_url="https://identity.xero.com/connect/token",
+    refresh_token_url="https://identity.xero.com/connect/token",
+    scope="offline_access openid profile email accounting.transactions "
+    "accounting.transactions.read accounting.reports.read "
+    "accounting.journals.read accounting.settings accounting.settings.read "
+    "accounting.contacts accounting.contacts.read accounting.attachments "
+    "accounting.attachments.read assets projects",
+)  # type: OAuth2Application
 
 
-@app.route('/', methods=['GET'])
-def get_index():
-    return render_template('index.html')
+# configure xero-python sdk client
+api_client = ApiClient(
+    Configuration(
+        debug=app.config["DEBUG"],
+        oauth2_token=OAuth2Token(
+            client_id=os.getenv("CLIENT_ID"), client_secret=os.getenv("CLIENT_SECRET")
+        ),
+    ),
+    pool_threads=1,
+)
+
+
+# configure token persistence and exchange point between flask-oauthlib and xero-python
+@xero.tokengetter
+@api_client.oauth2_token_getter
+def obtain_xero_oauth2_token():
+    return session.get("token")
+
+
+@xero.tokensaver
+@api_client.oauth2_token_saver
+def store_xero_oauth2_token(token):
+    session["token"] = token
+    session.modified = True
+
+
+def xero_token_required(function):
+    @wraps(function)
+    def decorator(*args, **kwargs):
+        xero_token = obtain_xero_oauth2_token()
+        if not xero_token:
+            return redirect(url_for("login", _external=True))
+
+        return function(*args, **kwargs)
+
+    return decorator
+
+
+@app.route("/login")
+def login():
+    redirect_url = url_for("oauth_callback", _external=True)
+    response = xero.authorize(callback_uri=redirect_url)
+    return response
+
+
+@app.route("/callback")
+def oauth_callback():
+    try:
+        response = xero.authorized_response()
+    except Exception as e:
+        print(e)
+        raise
+    # todo validate state value
+    if response is None or response.get("access_token") is None:
+        return "Access denied: response=%s" % response
+    store_xero_oauth2_token(response)
+    return redirect(url_for("index", _external=True))
+
+
+@app.route("/logout")
+def logout():
+    store_xero_oauth2_token(None)
+    return redirect(url_for("index", _external=True))
+
+
+@app.route("/export-token")
+@xero_token_required
+def export_token():
+    token = obtain_xero_oauth2_token()
+    buffer = BytesIO("token={!r}".format(token).encode("utf-8"))
+    buffer.seek(0)
+    return send_file(
+        buffer,
+        mimetype="x.python",
+        as_attachment=True,
+        attachment_filename="oauth2_token.py",
+    )
+
+
+@app.route("/refresh-token")
+@xero_token_required
+def refresh_token():
+    xero_token = obtain_xero_oauth2_token()
+    new_token = api_client.refresh_oauth2_token()
+    return render_template(
+        "code.html",
+        title="Xero OAuth2 token",
+        code=jsonify({"Old Token": xero_token, "New token": new_token}),
+        sub_title="token refreshed",
+    )
+
+
+def get_xero_tenant_id():
+    token = obtain_xero_oauth2_token()
+    if not token:
+        return None
+
+    identity_api = IdentityApi(api_client)
+    for connection in identity_api.get_connections():
+        if connection.tenant_type == "ORGANISATION":
+            return connection.tenant_id
+
+
+@app.route("/tenants")
+@xero_token_required
+def tenants():
+    identity_api = IdentityApi(api_client)
+    accounting_api = AccountingApi(api_client)
+
+    available_tenants = []
+    for connection in identity_api.get_connections():
+        tenant = serialize(connection)
+        if connection.tenant_type == "ORGANISATION":
+            organisations = accounting_api.get_organisations(
+                xero_tenant_id=connection.tenant_id
+            )
+            # tenant["organisations"] = serialize(organisations)
+
+        available_tenants.append(tenant)
+
+    return render_template(
+        "code.html",
+        title="Xero Tenants",
+        code=json.dumps(available_tenants, sort_keys=True, indent=4),
+    )
+
+
+@app.route("/create_invoices")
+def create_invoices():
+    xero_tenant_id = get_xero_tenant_id()
+    accounting_api = AccountingApi(api_client)
+
+    contact = Contact(
+        contact_id="571a2414-81ff-4f8f-8498-d91d83793131")
+    line_items = LineItem(
+        account_code="200",
+        description="Acme Tires",
+        line_amount=Decimal("40.00"),
+        line_item_id="5f7a612b-fdcc-4d33-90fa-a9f6bc6db32f",
+        quantity=Decimal("2.0000"),
+        tax_amount=Decimal("0.00"),
+        tax_type="NONE",
+        unit_amount=Decimal("20.00")
+    )
+
+    invoices = Invoice(type="ACCREC", due_date=datetime.date(2020, 7, 13),
+                       status="AUTHORISED", contact=contact, line_items=[line_items])
+
+    try:
+        created_invoices = accounting_api.create_invoices(
+            xero_tenant_id, invoices)
+        print(created_invoices)
+    except AccountingBadRequestException as exception:
+        sub_title = "Error: " + exception.reason
+        code = jsonify(exception.error_data)
+    else:
+        sub_title = "Invoice {} created.".format(
+            getvalue(created_invoices, "invoice.0.number", "")
+        )
+        code = serialize_model(created_invoices)
+
+    return render_template(
+        "code.html", title="Create Invoices", code=code, sub_title=sub_title
+    )
+
+
+@app.route("/")
+def index():
+    xero_access = dict(obtain_xero_oauth2_token() or {})
+    return render_template(
+        "code.html",
+        title="Home | oauth token",
+        code=json.dumps(xero_access, sort_keys=True, indent=4),
+    )
 
 
 @app.route('/config', methods=['GET'])
@@ -34,153 +259,6 @@ def get_config():
     return jsonify(
         publishableKey=os.getenv('STRIPE_PUBLISHABLE_KEY'),
     )
-
-
-@app.route('/create-customer', methods=['POST'])
-def create_customer():
-    # Reads application/json and returns a response
-    data = json.loads(request.data)
-    try:
-        # Create a new customer object
-        customer = stripe.Customer.create(
-            email=data['email']
-        )
-        # At this point, associate the ID of the Customer object with your
-        # own internal representation of a customer, if you have one.
-        return jsonify(
-            customer=customer,
-        )
-    except Exception as e:
-        return jsonify(error=str(e)), 403
-
-
-@app.route('/create-subscription', methods=['POST'])
-def createSubscription():
-    data = json.loads(request.data)
-    try:
-
-        stripe.PaymentMethod.attach(
-            data['paymentMethodId'],
-            customer=data['customerId'],
-        )
-        # Set the default payment method on the customer
-        stripe.Customer.modify(
-            data['customerId'],
-            invoice_settings={
-                'default_payment_method': data['paymentMethodId'],
-            },
-        )
-
-        # Create the subscription
-        subscription = stripe.Subscription.create(
-            customer=data['customerId'],
-            items=[
-                {
-                    'price': os.getenv(data['priceId'])
-                }
-            ],
-            expand=['latest_invoice.payment_intent'],
-        )
-        return jsonify(subscription)
-    except Exception as e:
-        return jsonify(error={'message': str(e)}), 200
-
-
-@app.route('/retry-invoice', methods=['POST'])
-def retrySubscription():
-    data = json.loads(request.data)
-    try:
-
-        stripe.PaymentMethod.attach(
-            data['paymentMethodId'],
-            customer=data['customerId'],
-        )
-        # Set the default payment method on the customer
-        stripe.Customer.modify(
-            data['customerId'],
-            invoice_settings={
-                'default_payment_method': data['paymentMethodId'],
-            },
-        )
-
-        invoice = stripe.Invoice.retrieve(
-            data['invoiceId'],
-            expand=['payment_intent'],
-        )
-        return jsonify(invoice)
-    except Exception as e:
-        return jsonify(error={'message': str(e)}), 200
-
-
-@app.route('/retrieve-upcoming-invoice', methods=['POST'])
-def retrieveUpcomingInvoice():
-    data = json.loads(request.data)
-    try:
-        # Retrieve the subscription
-        subscription = stripe.Subscription.retrieve(data['subscriptionId'])
-
-        # Retrive the Invoice
-        invoice = stripe.Invoice.upcoming(
-            customer=data['customerId'],
-            subscription=data['subscriptionId'],
-            subscription_items=[
-                {
-                    'id': subscription['items']['data'][0].id,
-                    'deleted': True,
-                    'clear_usage': True
-                },
-                {
-                    'price': os.getenv(data['newPriceId']),
-                    'deleted': False
-                }
-            ],
-        )
-        return jsonify(invoice)
-    except Exception as e:
-        return jsonify(error=str(e)), 403
-
-
-@app.route('/cancel-subscription', methods=['POST'])
-def cancelSubscription():
-    data = json.loads(request.data)
-    try:
-        # Cancel the subscription by deleting it
-        deletedSubscription = stripe.Subscription.delete(
-            data['subscriptionId'])
-        return jsonify(deletedSubscription)
-    except Exception as e:
-        return jsonify(error=str(e)), 403
-
-
-@app.route('/update-subscription', methods=['POST'])
-def updateSubscription():
-    data = json.loads(request.data)
-    try:
-        subscription = stripe.Subscription.retrieve(data['subscriptionId'])
-
-        updatedSubscription = stripe.Subscription.modify(
-            data['subscriptionId'],
-            cancel_at_period_end=False,
-            items=[{
-                'id': subscription['items']['data'][0].id,
-                'price': os.getenv(data['newPriceId']),
-            }]
-        )
-        return jsonify(updatedSubscription)
-    except Exception as e:
-        return jsonify(error=str(e)), 403
-
-
-@app.route('/retrieve-customer-payment-method', methods=['POST'])
-def retrieveCustomerPaymentMethod():
-    data = json.loads(request.data)
-    try:
-        paymentMethod = stripe.PaymentMethod.retrieve(
-            data['paymentMethodId'],
-        )
-        return jsonify(paymentMethod)
-    except Exception as e:
-        return jsonify(error=str(e)), 403
 
 
 @app.route('/stripe-webhook', methods=['POST'])
@@ -312,4 +390,5 @@ def process_lines(data):
 
 
 if __name__ == '__main__':
-    app.run(port=4242)
+    app.run(host="localhost")
+    app.run(port=5000)

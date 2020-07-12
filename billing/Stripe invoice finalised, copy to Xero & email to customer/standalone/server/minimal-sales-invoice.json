@@ -1,0 +1,16 @@
+{
+  "Type": "ACCREC",
+  "Contact": {
+    "ContactID": "571a2414-81ff-4f8f-8498-d91d83793131"
+  },
+  "DueDate": "/Date(1518685950940+0000)/",
+  "LineItems": [
+    {
+      "Description": "Services as agreed",
+      "Quantity": "4",
+      "UnitAmount": "100.00",
+      "AccountCode": "200"
+    }
+  ],
+  "Status": "AUTHORISED"
+}
