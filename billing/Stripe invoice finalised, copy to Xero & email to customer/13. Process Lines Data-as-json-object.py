@@ -2,7 +2,7 @@ import json
 
 # Local test data
 
-with open('sample-tiered-invoice.json') as json_file:
+with open('sample-tiered-prorated-complex-invoice.json') as json_file:
     data = json.load(json_file)
 
 # Zapier load Stripe raw data for finalized invoice
@@ -48,11 +48,25 @@ for j, line in enumerate(data['object']['lines']['data']):
                 descriptions.append(description)
                 quantities.append(quantity_tier_2)
                 amounts.append(amount)
+            elif proration and quantity > 0 and tiers_flat_amount != None:
+                description = str(description)
+                quantity = 1
+                amount = line['amount']/100
+                descriptions.append(description)
+                quantities.append(quantity)
+                amounts.append(amount)
 
     # Non-tiered plans
-    else:
+    elif not proration:
         description = line['plan']['nickname']
-        amount = line['amount']
+        amount = line['plan']['amount']/100
+        descriptions.append(description)
+        quantities.append(quantity)
+        amounts.append(amount)
+    elif proration:
+        description = line['description']
+        amount = line['amount']/100
+        quantity = 1
         descriptions.append(description)
         quantities.append(quantity)
         amounts.append(amount)
@@ -60,3 +74,4 @@ for j, line in enumerate(data['object']['lines']['data']):
 
 output = [{'descriptions': descriptions,
            'quantities': quantities, 'amount_decimal': amounts}]
+print(output)
