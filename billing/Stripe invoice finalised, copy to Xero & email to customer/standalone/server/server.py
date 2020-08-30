@@ -26,6 +26,8 @@ import stripe
 import json
 import os
 from utils import jsonify, serialize_model
+from pathlib import Path
+import json
 
 
 import time
@@ -55,6 +57,8 @@ env = os.getenv('ENV')
 if env != "production":
     # allow oauth2 loop to run over http (used for local testing only)
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+    # app.debug = True
+
 
 # configure persistent session cache
 Session(app)
@@ -92,21 +96,23 @@ api_client = ApiClient(
 
 
 # configure token persistence and exchange point between flask-oauthlib and xero-python
-@xero.tokengetter
-@api_client.oauth2_token_getter
+@ xero.tokengetter
+@ api_client.oauth2_token_getter
 def obtain_xero_oauth2_token():
-    return session.get("token")
+    with open("oauth2_token") as json_file:
+        token = json.load(json_file)
+        return token
 
 
-@xero.tokensaver
-@api_client.oauth2_token_saver
+@ xero.tokensaver
+@ api_client.oauth2_token_saver
 def store_xero_oauth2_token(token):
-    session["token"] = token
-    session.modified = True
+    with open("oauth2_token", "w") as outfile:
+        json.dump(token, outfile)
 
 
 def xero_token_required(function):
-    @wraps(function)
+    @ wraps(function)
     def decorator(*args, **kwargs):
         xero_token = obtain_xero_oauth2_token()
         if not xero_token:
@@ -117,14 +123,14 @@ def xero_token_required(function):
     return decorator
 
 
-@app.route("/login")
+@ app.route("/login")
 def login():
     redirect_url = url_for("oauth_callback", _external=True)
     response = xero.authorize(callback_uri=redirect_url)
     return response
 
 
-@app.route("/callback")
+@ app.route("/callback")
 def oauth_callback():
     try:
         response = xero.authorized_response()
@@ -138,14 +144,14 @@ def oauth_callback():
     return redirect(url_for("index", _external=True))
 
 
-@app.route("/logout")
+@ app.route("/logout")
 def logout():
     store_xero_oauth2_token(None)
     return redirect(url_for("index", _external=True))
 
 
-@app.route("/export-token")
-@xero_token_required
+@ app.route("/export-token")
+@ xero_token_required
 def export_token():
     token = obtain_xero_oauth2_token()
     buffer = BytesIO("token={!r}".format(token).encode("utf-8"))
@@ -158,8 +164,8 @@ def export_token():
     )
 
 
-@app.route("/refresh-token")
-@xero_token_required
+@ app.route("/refresh-token")
+@ xero_token_required
 def refresh_token():
     xero_token = obtain_xero_oauth2_token()
     new_token = api_client.refresh_oauth2_token()
@@ -182,8 +188,8 @@ def get_xero_tenant_id():
             return connection.tenant_id
 
 
-@app.route("/tenants")
-@xero_token_required
+@ app.route("/tenants")
+@ xero_token_required
 def tenants():
     identity_api = IdentityApi(api_client)
     accounting_api = AccountingApi(api_client)
@@ -206,28 +212,28 @@ def tenants():
     )
 
 
-@app.route("/create_invoices")
-def create_invoices():
+@ app.route("/create_invoices")
+def create_invoices(name, email_address, line_items):
     xero_tenant_id = get_xero_tenant_id()
     accounting_api = AccountingApi(api_client)
 
     contact = Contact(
-        name="New User",
-        email_address="test@gmail.com")
+        name=name,
+        email_address=email_address)
 
-    line_items = [LineItem(
-        account_code="200",
-        description="Acme Tires",
-        line_amount=Decimal("120.00"),
-        quantity=Decimal("3.0000"),
-        tax_type="OUTPUT",
-    ), LineItem(
-        account_code="200",
-        description="Acme Braies",
-        line_amount=Decimal("40.00"),
-        quantity=Decimal("4.0000"),
-        tax_type="OUTPUT",
-    )]
+    # line_items = [LineItem(
+    #     account_code="200",
+    #     description="Acme Tires",
+    #     line_amount=Decimal("99.00"),
+    #     quantity=Decimal("3.0000"),
+    #     tax_type="OUTPUT",
+    # ), LineItem(
+    #     account_code="200",
+    #     description="Acme Brakes",
+    #     line_amount=Decimal("44.00"),
+    #     quantity=Decimal("4.0000"),
+    #     tax_type="OUTPUT",
+    # )]
 
     invoices = Invoice(type="ACCREC", due_date=datetime.date(2020, 7, 13),
                        status="AUTHORISED", contact=contact, line_items=line_items, line_amount_types=LineAmountTypes.INCLUSIVE)
@@ -238,7 +244,8 @@ def create_invoices():
         print(created_invoices)
     except AccountingBadRequestException as exception:
         sub_title = "Error: " + exception.reason
-        code = jsonify(exception.error_data)
+        code = exception.error_data
+        print(code)
     else:
         sub_title = "Invoice {} created.".format(
             getvalue(created_invoices, "invoice.0.number", "")
@@ -250,7 +257,7 @@ def create_invoices():
     )
 
 
-@app.route("/")
+@ app.route("/")
 def index():
     xero_access = dict(obtain_xero_oauth2_token() or {})
     return render_template(
@@ -260,14 +267,14 @@ def index():
     )
 
 
-@app.route('/config', methods=['GET'])
+@ app.route('/config', methods=['GET'])
 def get_config():
     return jsonify(
         publishableKey=os.getenv('STRIPE_PUBLISHABLE_KEY'),
     )
 
 
-@app.route('/stripe-webhook', methods=['POST'])
+@ app.route('/stripe-webhook', methods=['POST'])
 def webhook_received():
 
     # You can use webhooks to receive information about asynchronous payment events.
@@ -298,14 +305,14 @@ def webhook_received():
         # database to reference when a user accesses your service to avoid hitting rate
         # limits.
         # print(data)
-        print(invoice.paid)
+        print("invoice.paid")
     if event_type == 'invoice.payment_failed':
         # If the payment fails or the customer does not have a valid payment method,
         # an invoice.payment_failed event is sent, the subscription becomes past_due.
         # Use this webhook to notify your user that their payment has
         # failed and to retrieve new card details.
         # print(data)
-        print(invoice.payment_failed)
+        print("invoice.payment_failed")
 
     if event_type == 'invoice.finalized':
         # If you want to manually send out invoices to your customers
@@ -316,12 +323,12 @@ def webhook_received():
         # handle subscription cancelled automatically based
         # upon your subscription settings. Or if the user cancels it.
         # print(data)
-        print(customer.subscription.deleted)
+        print("customer.subscription.deleted")
 
     if event_type == 'customer.subscription.trial_will_end':
         # Send notification to your user that the trial will end
         # print(data)
-        print(customer.subscription.trial_will_end)
+        print("customer.subscription.trial_will_end")
 
     return jsonify({'status': 'success'})
 
@@ -332,8 +339,11 @@ def process_lines(data):
     descriptions = []
     quantities = []
     amounts = []
+    sales_accounts = []
 
     for j, line in enumerate(data['object']['lines']['data']):
+        sales_account = line['plan']['metadata']['sales_account']
+        sales_accounts.append(sales_account)
         proration = line['proration']
         tiers_mode = line['plan']['tiers_mode']
         nickname = line['plan']['nickname']
@@ -351,8 +361,10 @@ def process_lines(data):
                 if quantity == 0:
                     print('Skipping invoice line with 0 quantity')
                 elif "Tier 1" in description and (tiers_flat_amount != None) and (tiers_up_to != None) and (quantity > 0):
-                    description = description + '. Flat fee for first ' + \
-                        str(tiers_up_to) + ' users'
+                    # description = description + '. Flat fee for first ' + \
+                    #     str(tiers_up_to) + ' users'
+                    next = j+1
+                    description = data['object']['lines']['data'][next]['description']
                     quantity_flat_rate = 1
                     amount = tiers_flat_amount/100
                     descriptions.append(description)
@@ -378,7 +390,7 @@ def process_lines(data):
         # Non-tiered plans
         elif not proration:
             description = line['plan']['nickname']
-            amount = line['plan']['amount']/100
+            amount = line['amount']/100
             descriptions.append(description)
             quantities.append(quantity)
             amounts.append(amount)
@@ -398,8 +410,15 @@ def process_lines(data):
     print(name)
     print(email_address)
     print(line_data)
-
-    # create_invoices()
+    print(len(line_data[0]['descriptions']))
+    line_items = []
+    for j, line in enumerate(line_data[0]['descriptions']):
+        quantity = line_data[0]['quantities'][j]
+        amount = line_data[0]['amount_decimal'][j]
+        line_items.append(LineItem(account_code=sales_account, description=line, line_amount=Decimal(
+            amount), quantity=Decimal(quantity), tax_type="OUTPUT"))
+    print('done processing lines.')
+    create_invoices(name, email_address, line_items)
 
 
 if __name__ == '__main__':
