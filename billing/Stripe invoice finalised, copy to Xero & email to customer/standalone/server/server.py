@@ -213,7 +213,7 @@ def tenants():
 
 
 @ app.route("/create_invoices")
-def create_invoices(name, email_address, line_items):
+def create_invoices(invoice_number, year_due, month_due, day_due, name, email_address, line_items):
     xero_tenant_id = get_xero_tenant_id()
     accounting_api = AccountingApi(api_client)
 
@@ -221,30 +221,17 @@ def create_invoices(name, email_address, line_items):
         name=name,
         email_address=email_address)
 
-    # line_items = [LineItem(
-    #     account_code="200",
-    #     description="Acme Tires",
-    #     line_amount=Decimal("99.00"),
-    #     quantity=Decimal("3.0000"),
-    #     tax_type="OUTPUT",
-    # ), LineItem(
-    #     account_code="200",
-    #     description="Acme Brakes",
-    #     line_amount=Decimal("44.00"),
-    #     quantity=Decimal("4.0000"),
-    #     tax_type="OUTPUT",
-    # )]
-
-    invoices = Invoice(type="ACCREC", due_date=datetime.date(2020, 7, 13),
-                       status="AUTHORISED", contact=contact, line_items=line_items, line_amount_types=LineAmountTypes.INCLUSIVE)
+    invoices = Invoice(type="ACCREC", due_date=datetime.date(year_due, month_due, day_due),
+                       status="AUTHORISED", invoice_number=invoice_number, contact=contact, line_items=line_items, line_amount_types=LineAmountTypes.INCLUSIVE, sent_to_contact=True)
 
     try:
         created_invoices = accounting_api.create_invoices(
             xero_tenant_id, invoices)
-        print(created_invoices)
+        print('invoice created in Xero')
     except AccountingBadRequestException as exception:
         sub_title = "Error: " + exception.reason
         code = exception.error_data
+        print(sub_title)
         print(code)
     else:
         sub_title = "Invoice {} created.".format(
@@ -255,6 +242,7 @@ def create_invoices(name, email_address, line_items):
     return render_template(
         "code.html", title="Create Invoices", code=code, sub_title=sub_title
     )
+    print('-----------------------------------')
 
 
 @ app.route("/")
@@ -402,15 +390,25 @@ def process_lines(data):
             quantities.append(quantity)
             amounts.append(amount)
 
+    invoice_number = data['object']['number']
     name = data['object']['customer_name']
     email_address = data['object']['customer_email']
-
+    status = data['object']['status']
+    total = Decimal(data['object']['total'])
     line_data = [{'descriptions': descriptions,
                   'quantities': quantities, 'amount_decimal': amounts}]
+    created = data['object']['created']
+    year_due = int(datetime.datetime.utcfromtimestamp(created).strftime('%Y'))
+    month_due = int(datetime.datetime.utcfromtimestamp(created).strftime('%m'))
+    day_due = int(datetime.datetime.utcfromtimestamp(created).strftime('%d'))
+    print('-----------------------------------')
+    print(invoice_number)
     print(name)
     print(email_address)
-    print(line_data)
-    print(len(line_data[0]['descriptions']))
+    # print(status)
+    print(total)
+    #print(year_due, month_due, day_due)
+
     line_items = []
     for j, line in enumerate(line_data[0]['descriptions']):
         quantity = line_data[0]['quantities'][j]
@@ -418,7 +416,36 @@ def process_lines(data):
         line_items.append(LineItem(account_code=sales_account, description=line, line_amount=Decimal(
             amount), quantity=Decimal(quantity), tax_type="OUTPUT"))
     print('done processing lines.')
-    create_invoices(name, email_address, line_items)
+    create_invoices(invoice_number, year_due, month_due,
+                    day_due, name, email_address, line_items)
+
+    # if status == 'paid':
+    # TODO create payment in Xero
+    # TODO email paid invoice pdf to customer
+    # subject: IT Solver: Your invoice is available
+    # body:
+    #         "<div><a href="https://www.itsolver.net" target="_blank"><img alt="IT Solver" src="https://www.itsolver.net/assets/images/it_solver_logo_horizontal_no_tagline.png"></a></div>
+    # <p>Hey {{63827708__Contact__FirstName}},</p>
+    # Thanks for using IT Solver to simplify your business.
+    # Your paid invoice for ${{63827708__Total}} is attached.</p>
+
+    # <p>Important: The balance was automatically charged so you don't need to take any action.</p>
+
+    # <p>If you want to view your payment history or update your payment info, contact us via <a href="https://www.itsolver.net/contact" target="_blank">itsolver.net/contact</a></p>"
+    # elif:
+    # TODO email unpaid invoice pdf to customer
+    # body: <div><a href="https://www.itsolver.net" target="_blank"><img alt="IT Solver" src="https://www.itsolver.net/assets/images/it_solver_logo_horizontal_no_tagline.png"></a></div>
+    # subject: IT Solver: Your invoice is available
+    # <p>Hey {{63827708__Contact__FirstName}},
+    # Your invoice for ${{63827708__Total}} is unpaid.</p>
+
+    # Please view the invoice online to pay: {{64929200__obj__data__object__hosted_invoice_url}}
+
+    # Normally we charge your card automatically, but that was unsuccessful.
+
+    # New card details? Pay the invoice manually then ask us to use it from now on.
+
+    # <p>If you want to view your payment history or update your payment info, contact us via <a href="https://www.itsolver.net/contact" target="_blank">itsolver.net/contact</a></p>
 
 
 if __name__ == '__main__':
