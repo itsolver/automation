@@ -14,7 +14,8 @@ from xero_python.exceptions import AccountingBadRequestException
 from xero_python.api_client.oauth2 import OAuth2Token
 from xero_python.api_client.configuration import Configuration
 from xero_python.api_client import ApiClient, serialize
-from xero_python.accounting import AccountingApi, ContactPerson, Contact, Contacts, Invoice, Invoices, LineItem
+from xero_python.accounting import (
+    AccountingApi, ContactPerson, Contact, Contacts, Invoice, Invoices, LineItem, LineAmountTypes,)
 from flask_session import Session
 from flask_oauthlib.contrib.client import OAuth, OAuth2Application
 from flask import Flask, url_for, render_template, session, redirect, json, send_file
@@ -211,20 +212,25 @@ def create_invoices():
     accounting_api = AccountingApi(api_client)
 
     contact = Contact(
-        contact_id="571a2414-81ff-4f8f-8498-d91d83793131")
-    line_items = LineItem(
+        name="New User",
+        email_address="test@gmail.com")
+
+    line_items = [LineItem(
         account_code="200",
         description="Acme Tires",
+        line_amount=Decimal("120.00"),
+        quantity=Decimal("3.0000"),
+        tax_type="OUTPUT",
+    ), LineItem(
+        account_code="200",
+        description="Acme Braies",
         line_amount=Decimal("40.00"),
-        line_item_id="5f7a612b-fdcc-4d33-90fa-a9f6bc6db32f",
-        quantity=Decimal("2.0000"),
-        tax_amount=Decimal("0.00"),
-        tax_type="NONE",
-        unit_amount=Decimal("20.00")
-    )
+        quantity=Decimal("4.0000"),
+        tax_type="OUTPUT",
+    )]
 
     invoices = Invoice(type="ACCREC", due_date=datetime.date(2020, 7, 13),
-                       status="AUTHORISED", contact=contact, line_items=[line_items])
+                       status="AUTHORISED", contact=contact, line_items=line_items, line_amount_types=LineAmountTypes.INCLUSIVE)
 
     try:
         created_invoices = accounting_api.create_invoices(
@@ -384,9 +390,16 @@ def process_lines(data):
             quantities.append(quantity)
             amounts.append(amount)
 
-    output = [{'descriptions': descriptions,
-               'quantities': quantities, 'amount_decimal': amounts}]
-    print(output)
+    name = data['object']['customer_name']
+    email_address = data['object']['customer_email']
+
+    line_data = [{'descriptions': descriptions,
+                  'quantities': quantities, 'amount_decimal': amounts}]
+    print(name)
+    print(email_address)
+    print(line_data)
+
+    # create_invoices()
 
 
 if __name__ == '__main__':

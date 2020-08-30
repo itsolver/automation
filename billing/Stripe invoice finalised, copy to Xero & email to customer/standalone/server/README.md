@@ -35,13 +35,13 @@ pip install -r requirements.txt
 
 ```
 export FLASK_APP=server.py
-python3 -m flask run --port=4242
+python3 -m flask run --port=5000
 ```
 
 Forward events to local webhook
 
 ```
-stripe listen --forward-to localhost:4242/stripe-webhook
+stripe listen --forward-to localhost:5000/stripe-webhook
 ```
 
 **Windows (PowerShell)**
