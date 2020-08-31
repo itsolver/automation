@@ -7,3 +7,5 @@ cache/
 config.py
 oauth2_token
 *.db
+.gmail_api_credentials.json
+token.pickle
