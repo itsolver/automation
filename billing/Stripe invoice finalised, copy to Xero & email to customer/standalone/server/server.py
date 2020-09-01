@@ -212,39 +212,6 @@ def tenants():
     )
 
 
-@ app.route("/create_invoices")
-def create_invoices(invoice_number, year_due, month_due, day_due, name, email_address, line_items):
-    xero_tenant_id = get_xero_tenant_id()
-    accounting_api = AccountingApi(api_client)
-
-    contact = Contact(
-        name=name,
-        email_address=email_address)
-
-    invoices = Invoice(type="ACCREC", due_date=datetime.date(year_due, month_due, day_due),
-                       status="AUTHORISED", invoice_number=invoice_number, contact=contact, line_items=line_items, line_amount_types=LineAmountTypes.INCLUSIVE, sent_to_contact=True)
-
-    try:
-        created_invoices = accounting_api.create_invoices(
-            xero_tenant_id, invoices)
-        print('invoice created in Xero')
-    except AccountingBadRequestException as exception:
-        sub_title = "Error: " + exception.reason
-        code = exception.error_data
-        print(sub_title)
-        print(code)
-    else:
-        sub_title = "Invoice {} created.".format(
-            getvalue(created_invoices, "invoice.0.number", "")
-        )
-        code = serialize_model(created_invoices)
-
-    return render_template(
-        "code.html", title="Create Invoices", code=code, sub_title=sub_title
-    )
-    print('-----------------------------------')
-
-
 @ app.route("/")
 def index():
     xero_access = dict(obtain_xero_oauth2_token() or {})
@@ -378,7 +345,7 @@ def process_lines(data):
         # Non-tiered plans
         elif not proration:
             description = line['plan']['nickname']
-            amount = line['amount']/100
+            amount = line['plan']['amount']/100
             descriptions.append(description)
             quantities.append(quantity)
             amounts.append(amount)
@@ -413,14 +380,17 @@ def process_lines(data):
     for j, line in enumerate(line_data[0]['descriptions']):
         quantity = line_data[0]['quantities'][j]
         amount = line_data[0]['amount_decimal'][j]
-        line_items.append(LineItem(account_code=sales_account, description=line, line_amount=Decimal(
+        line_items.append(LineItem(account_code=sales_account, description=line, unit_amount=Decimal(
             amount), quantity=Decimal(quantity), tax_type="OUTPUT"))
     print('done processing lines.')
     create_invoices(invoice_number, year_due, month_due,
                     day_due, name, email_address, line_items)
 
+    # TODO advance to sending invoice to customer
     # if status == 'paid':
     # TODO create payment in Xero
+    # TODO get invoice in pdf from xero
+    # invoice_id_example = 'bdbf5ea9-b6c8-436d-98be-ce320018e79f'
     # TODO email paid invoice pdf to customer
     # subject: IT Solver: Your invoice is available
     # body:
@@ -446,6 +416,55 @@ def process_lines(data):
     # New card details? Pay the invoice manually then ask us to use it from now on.
 
     # <p>If you want to view your payment history or update your payment info, contact us via <a href="https://www.itsolver.net/contact" target="_blank">itsolver.net/contact</a></p>
+
+
+@ app.route("/create_invoices")
+def create_invoices(invoice_number, year_due, month_due, day_due, name, email_address, line_items):
+    xero_tenant_id = get_xero_tenant_id()
+    accounting_api = AccountingApi(api_client)
+
+    contact = Contact(
+        name=name,
+        email_address=email_address)
+
+    invoices = Invoice(type="ACCREC", due_date=datetime.date(year_due, month_due, day_due),
+                       status="AUTHORISED", invoice_number=invoice_number, contact=contact, line_items=line_items, line_amount_types=LineAmountTypes.INCLUSIVE, sent_to_contact=True)
+
+    try:
+        created_invoices = accounting_api.create_invoices(
+            xero_tenant_id, invoices)
+        print('invoice created in Xero')
+    except AccountingBadRequestException as exception:
+        sub_title = "Error: " + exception.reason
+        code = exception.error_data
+        print(sub_title)
+        print(code)
+        # TODO log error and send me an email notification
+    else:
+        sub_title = "Invoice {} created.".format(
+            getvalue(created_invoices, "invoice.0.number", "")
+        )
+        code = serialize_model(created_invoices)
+        invoice_id = created_invoices._invoices[0].invoice_id
+        invoice_pdf_path = get_invoice_pdf(invoice_id)
+        create_message_with_attachment(
+            'billing@itsolver.net', 'mclauchlangus@gmail.com', 'IT Solver: Your invoice is availale', message_text, invoice_pdf_path)
+        # TODO advance here
+
+    print('-----------------------------------')
+
+    return render_template(
+        "code.html", title="Create Invoices", code=code, sub_title=sub_title
+    )
+
+
+@xero_token_required
+def get_invoice_pdf(invoice_id):
+    xero_tenant_id = get_xero_tenant_id()
+    accounting_api = AccountingApi(api_client)
+    invoice_pdf_path = accounting_api.get_invoice_as_pdf(
+        xero_tenant_id, invoice_id=invoice_id)
+    return invoice_pdf_path
 
 
 if __name__ == '__main__':
