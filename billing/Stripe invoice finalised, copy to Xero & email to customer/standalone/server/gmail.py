@@ -16,19 +16,8 @@ from urllib.error import HTTPError
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/gmail.send']
 
-# TODO pass these values as parameters in the function call
-to = "mclauchlangus@gmail.com"
-fname = "Jo"
-invoice_number = "INV-1234"
-total = "1000000"
-invoice_pdf_path = '/var/folders/s4/bb8byl2n07z9cs5dz7mqys300000gn/T/tmpbncttd90'
-subject = "Your IT Solver Invoice " + invoice_number
 
-
-def main():
-    """Shows basic usage of the Gmail API.
-    Lists the user's Gmail labels.
-    """
+def gmail_creds():
     creds = None
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
@@ -48,16 +37,11 @@ def main():
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
 
-    service = build('gmail', 'v1', credentials=creds)
-    message = create_message_with_attachment(
-        'billing@itsolver.net', to, subject, fname, invoice_number, total, invoice_pdf_path)
-    print('message created')
-    response = send_message(service, 'angus@itsolver.net', message)
-    print('message sent')
+    return build('gmail', 'v1', credentials=creds)
 
 
 def create_message_with_attachment(
-        sender, to, subject, first_name, invoice_number, total, file):
+        sender, to, subject, first_name, invoice_number, total, file, html):
     """Create a message for an email.
 
     Args:
@@ -75,33 +59,6 @@ def create_message_with_attachment(
     message['to'] = to
     message['from'] = sender
     message['subject'] = subject
-
-    # Create the body of the message (a HTML and plain-text version).
-    html = """\
-        <div><a href="https://www.itsolver.net" target="_blank"><img alt="IT Solver" src="https://www.itsolver.net/assets/images/it_solver_logo_horizontal_no_tagline.png"></a></div>
-        <p>Hey """ + first_name + """,</p>
-        Thanks for using IT Solver to simplify your business.
-        Your paid invoice for $""" + total + """ is attached.</p>
-
-        <p>Important: The balance was automatically charged so you don't need to take any action.</p>
-
-        <p>Invoice number: """ + invoice_number + """</p>
-
-        <p>If you want to view your payment history or update your payment info, contact us via <a href="https://www.itsolver.net/contact" target="_blank">itsolver.net/contact</a></p>
-
-        <a href="https://g.page/it-solver" target="_blank">IT Solver 6a/112 Bloomfield St, Cleveland QLD 4163</a>
-        """
-    text = """
-    Hey """ + first_name + """, Thanks for using IT Solver to simplify your business.
-
-    Your paid invoice for $""" + total + """ is attached.
-
-    Important: The balance was automatically charged so you don't need to take any action
-
-    If you want to view your payment history or update your payment info, contact us via: https://www.itsolver.net/contact
-
-    IT Solver 6a/112 Bloomfield St, Cleveland QLD 4163 https://g.page/it-solver 
-    """
 
     # Record the MIME types of both parts - text/plain and text/html.
     # part1 = MIMEText(text, 'plain')
@@ -158,4 +115,4 @@ def send_message(service, user_id, message):
 
 
 if __name__ == '__main__':
-    main()
+    gmail_creds()

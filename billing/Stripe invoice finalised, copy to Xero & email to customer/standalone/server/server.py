@@ -26,6 +26,7 @@ import stripe
 import json
 import os
 from utils import jsonify, serialize_model
+from gmail import create_message_with_attachment, send_message, gmail_creds
 from pathlib import Path
 import json
 
@@ -54,10 +55,10 @@ app = Flask(__name__)
 app.config.from_object("default_settings")
 env = os.getenv('ENV')
 
-if env != "production":
-    # allow oauth2 loop to run over http (used for local testing only)
-    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-    # app.debug = True
+# if env != "production":
+#     # allow oauth2 loop to run over http (used for local testing only)
+#     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+#     # app.debug = True
 
 
 # configure persistent session cache
@@ -361,7 +362,9 @@ def process_lines(data):
     name = data['object']['customer_name']
     email_address = data['object']['customer_email']
     status = data['object']['status']
-    total = Decimal(data['object']['total'])
+    total = Decimal(data['object']['total'])/100
+    total = str(round(total, 2))
+
     line_data = [{'descriptions': descriptions,
                   'quantities': quantities, 'amount_decimal': amounts}]
     created = data['object']['created']
@@ -369,12 +372,11 @@ def process_lines(data):
     month_due = int(datetime.datetime.utcfromtimestamp(created).strftime('%m'))
     day_due = int(datetime.datetime.utcfromtimestamp(created).strftime('%d'))
     print('-----------------------------------')
-    print(invoice_number)
     print(name)
     print(email_address)
     # print(status)
-    print(total)
-    #print(year_due, month_due, day_due)
+    print("$" + total)
+    # print(year_due, month_due, day_due)
 
     line_items = []
     for j, line in enumerate(line_data[0]['descriptions']):
@@ -382,44 +384,12 @@ def process_lines(data):
         amount = line_data[0]['amount_decimal'][j]
         line_items.append(LineItem(account_code=sales_account, description=line, unit_amount=Decimal(
             amount), quantity=Decimal(quantity), tax_type="OUTPUT"))
-    print('done processing lines.')
     create_invoices(invoice_number, year_due, month_due,
-                    day_due, name, email_address, line_items)
-
-    # TODO advance to sending invoice to customer
-    # if status == 'paid':
-    # TODO create payment in Xero
-    # TODO get invoice in pdf from xero
-    # invoice_id_example = 'bdbf5ea9-b6c8-436d-98be-ce320018e79f'
-    # TODO email paid invoice pdf to customer
-    # subject: IT Solver: Your invoice is available
-    # body:
-    #         "<div><a href="https://www.itsolver.net" target="_blank"><img alt="IT Solver" src="https://www.itsolver.net/assets/images/it_solver_logo_horizontal_no_tagline.png"></a></div>
-    # <p>Hey {{63827708__Contact__FirstName}},</p>
-    # Thanks for using IT Solver to simplify your business.
-    # Your paid invoice for ${{63827708__Total}} is attached.</p>
-
-    # <p>Important: The balance was automatically charged so you don't need to take any action.</p>
-
-    # <p>If you want to view your payment history or update your payment info, contact us via <a href="https://www.itsolver.net/contact" target="_blank">itsolver.net/contact</a></p>"
-    # elif:
-    # TODO email unpaid invoice pdf to customer
-    # body: <div><a href="https://www.itsolver.net" target="_blank"><img alt="IT Solver" src="https://www.itsolver.net/assets/images/it_solver_logo_horizontal_no_tagline.png"></a></div>
-    # subject: IT Solver: Your invoice is available
-    # <p>Hey {{63827708__Contact__FirstName}},
-    # Your invoice for ${{63827708__Total}} is unpaid.</p>
-
-    # Please view the invoice online to pay: {{64929200__obj__data__object__hosted_invoice_url}}
-
-    # Normally we charge your card automatically, but that was unsuccessful.
-
-    # New card details? Pay the invoice manually then ask us to use it from now on.
-
-    # <p>If you want to view your payment history or update your payment info, contact us via <a href="https://www.itsolver.net/contact" target="_blank">itsolver.net/contact</a></p>
+                    day_due, name, email_address, line_items, status, total)
 
 
 @ app.route("/create_invoices")
-def create_invoices(invoice_number, year_due, month_due, day_due, name, email_address, line_items):
+def create_invoices(invoice_number, year_due, month_due, day_due, name, email_address, line_items, status, total):
     xero_tenant_id = get_xero_tenant_id()
     accounting_api = AccountingApi(api_client)
 
@@ -433,29 +403,72 @@ def create_invoices(invoice_number, year_due, month_due, day_due, name, email_ad
     try:
         created_invoices = accounting_api.create_invoices(
             xero_tenant_id, invoices)
-        print('invoice created in Xero')
     except AccountingBadRequestException as exception:
         sub_title = "Error: " + exception.reason
-        code = exception.error_data
+        #code = exception.error_data
         print(sub_title)
-        print(code)
+        # print(code)
         # TODO log error and send me an email notification
     else:
         sub_title = "Invoice {} created.".format(
-            getvalue(created_invoices, "invoice.0.number", "")
+            getvalue(created_invoices, "invoices.0.invoice_number", "")
         )
-        code = serialize_model(created_invoices)
+        print(sub_title)
         invoice_id = created_invoices._invoices[0].invoice_id
         invoice_pdf_path = get_invoice_pdf(invoice_id)
-        create_message_with_attachment(
-            'billing@itsolver.net', 'mclauchlangus@gmail.com', 'IT Solver: Your invoice is availale', message_text, invoice_pdf_path)
-        # TODO advance here
+        fname = getvalue(created_invoices,
+                         "invoices.0.contact.first_name", "")
+        created_invoices._invoices[0].total
+        invoice_number = created_invoices._invoices[0].invoice_number
+        subject = "Your IT Solver Invoice " + invoice_number
+        if status == 'paid':
+            # TODO Create Xero Payment
+            create_payment(invoice_id, "2020-09-02", total)
+            # Create the body of the message (a HTML and plain-text version).
+            html = """\
+                <div><a href="https://www.itsolver.net" target="_blank"><img src="https://www.itsolver.net/assets/images/it_solver_logo_horizontal_no_tagline.png"></a></div>
+                <p>Hey """ + fname + """,</p>
+                Thanks for using IT Solver to simplify your business.
+                Your paid invoice for $""" + total + """ is attached.</p>
+
+                <p>Important: The balance was automatically charged so you don't need to take any action.</p>
+
+                <p>Invoice number: """ + invoice_number + """</p>
+
+                <p>If you want to view your payment history or update your payment info, contact us via <a href="https://www.itsolver.net/contact" target="_blank">itsolver.net/contact</a></p>
+
+                <a href="https://g.page/it-solver" target="_blank">IT Solver 6a/112 Bloomfield St, Cleveland QLD 4163</a>
+                """
+            message = create_message_with_attachment(
+                'billing@itsolver.net', email_address, subject, fname, invoice_number, total, invoice_pdf_path, html)
+            print('message created')
+            service = gmail_creds()
+            send_message(service, 'angus@itsolver.net', message)
+            print('message sent')
+        else:
+            # Create the body of the message (a HTML and plain-text version).
+            html = """\
+                <div><a href="https://www.itsolver.net" target="_blank"><img src="https://www.itsolver.net/assets/images/it_solver_logo_horizontal_no_tagline.png"></a></div>
+                <p>Hey """ + fname + """,</p>
+                Thanks for using IT Solver to simplify your business.
+                Your invoice for $""" + total + """ is attached.</p>
+
+                <p>Important: The balance will be automatically charged so you don't need to take any action.</p>
+
+                <p>Invoice number: """ + invoice_number + """</p>
+
+                <p>If you want to view your payment history or update your payment info, contact us via <a href="https://www.itsolver.net/contact" target="_blank">itsolver.net/contact</a></p>
+
+                <a href="https://g.page/it-solver" target="_blank">IT Solver 6a/112 Bloomfield St, Cleveland QLD 4163</a>
+                """
+            message = create_message_with_attachment(
+                'billing@itsolver.net', email_address, subject, fname, invoice_number, total, invoice_pdf_path, html)
+            print('message created')
+            service = gmail_creds()
+            send_message(service, 'angus@itsolver.net', message)
+            print('message sent')
 
     print('-----------------------------------')
-
-    return render_template(
-        "code.html", title="Create Invoices", code=code, sub_title=sub_title
-    )
 
 
 @xero_token_required
@@ -465,6 +478,21 @@ def get_invoice_pdf(invoice_id):
     invoice_pdf_path = accounting_api.get_invoice_as_pdf(
         xero_tenant_id, invoice_id=invoice_id)
     return invoice_pdf_path
+
+
+@xero_token_required
+def create_payment(invoice_id, date_paid, amount_paid):
+    xero_tenant_id = get_xero_tenant_id()
+    accounting_api = AccountingApi(api_client)
+    payment = {
+        "Invoice": {"InvoiceID": invoice_id},
+        "Account": {"Code": "100"},
+        "Date": date_paid,
+        "Amount": amount_paid
+    }
+    invoice_payment = accounting_api.create_payment(
+        xero_tenant_id, payment)
+    return invoice_payment
 
 
 if __name__ == '__main__':
