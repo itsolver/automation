@@ -302,7 +302,8 @@ def process_lines(data):
     sales_accounts = []
 
     for j, line in enumerate(data['object']['lines']['data']):
-        sales_account = line['plan']['metadata']['sales_account']
+        sales_account = getvalue(
+            line, 'plan.metadata.sales_account', '203')  # TODO: check tiered pricing isn't always defaulting because incorrect path to sales_account metadata
         sales_accounts.append(sales_account)
         proration = line['proration']
         tiers_mode = line['plan']['tiers_mode']
