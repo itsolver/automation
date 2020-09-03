@@ -428,9 +428,9 @@ def create_invoices(invoice_number, year_due, month_due, day_due, name, email_ad
             provider_company_name, invoice_number)
         total_str = '{s}{a}'.format(s=conv['currency_symbol'], a=total)
         if status == 'paid':
-            # TODO Create Xero Payment
-            date_paid = "{}-{}-{}".format(year_due, month_due, day_due)
-            create_payment(invoice_id, date_paid, total)
+            # ISSUE: Payment successfully created, shows on invoice but not visible in bank rec page. Disabled for now, and removed Xero online url link from html template.
+            #date_paid = "{}-{}-{}".format(year_due, month_due, day_due)
+            #create_payment(invoice_id, date_paid, total)
             # For the html multiline environment variable, wrap with single quotes, escape single quotes with a backslash and double-up the curley brackets.
             message_paid_html = os.getenv('MESSAGE_PAID_HTML')
             html = message_paid_html.format(
