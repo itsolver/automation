@@ -441,7 +441,7 @@ def create_invoices(invoice_number, year_due, month_due, day_due, name, email_ad
                 <h1>Another Month of Business Made Simple!</h1>
                 <p>Hey {0}, we received your payment. Thanks for using IT Solver to simplify your business with cloud apps and tech support.</p>
                 <p>Your invoice for ${1} is attached.</p>
-                <em>Invoice number: {2}</em>
+                <p>Invoice number: {2}</p>
                 <p>View your bill online: {3}</p>
                 <p>From your online bill you can print a PDF, export a CSV, or create a free login and view your outstanding bills.</p>
 
@@ -463,7 +463,7 @@ def create_invoices(invoice_number, year_due, month_due, day_due, name, email_ad
                 <p>Hey {0}, Thanks for using IT Solver to simplify your business with cloud apps and tech support.</p>
                 <p>Your invoice for ${1} is attached.</p>
                 <p>Note: The balance will be automatically charged so you don't need to take any action.</p>
-                <em>Invoice number: {2}</em>
+                <p>Invoice number: {2}</p>
                 <p>View your bill online: {3}</p>
                 <p>From your online bill you can print a PDF, export a CSV, or create a free login and view your outstanding bills.</p>
 
