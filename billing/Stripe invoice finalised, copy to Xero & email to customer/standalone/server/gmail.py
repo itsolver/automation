@@ -41,12 +41,13 @@ def gmail_creds():
 
 
 def create_message_with_attachment(
-        sender_name, sender_email, to, subject, first_name, invoice_number, total, file, html):
+        sender_name, sender_email, to, cc, subject, first_name, invoice_number, file, html):
     """Create a message for an email.
 
     Args:
       sender: Email address of the sender.
       to: Email address of the receiver.
+      cc: Email addresses of CC receivers.
       subject: The subject of the email message.
       message_text: The text of the email message.
       file: The path to the file to be attached.
@@ -57,6 +58,7 @@ def create_message_with_attachment(
     message = MIMEMultipart()
 
     message['to'] = to
+    message['cc'] = ', '.join(cc)
     message['from'] = "{} <{}>".format(sender_name, sender_email)
     message['subject'] = subject
 
