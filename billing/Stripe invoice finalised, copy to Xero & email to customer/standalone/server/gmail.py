@@ -89,7 +89,9 @@ def create_message_with_attachment(
         fp.close()
     filename = os.path.basename(file)
     encoders.encode_base64(msg)
-    msg.add_header('Content-Disposition', 'attachment', filename='invoice.pdf')
+    # TODO: rename filename to invoice_number.pdf
+    msg.add_header('Content-Disposition', 'attachment',
+                   filename='{}.pdf'.format(invoice_number))
     message.attach(msg)
 
     return {'raw': base64.urlsafe_b64encode(message.as_string().encode()).decode()}
