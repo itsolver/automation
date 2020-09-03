@@ -41,7 +41,7 @@ def gmail_creds():
 
 
 def create_message_with_attachment(
-        sender, to, subject, first_name, invoice_number, total, file, html):
+        sender_name, sender_email, to, subject, first_name, invoice_number, total, file, html):
     """Create a message for an email.
 
     Args:
@@ -57,7 +57,7 @@ def create_message_with_attachment(
     message = MIMEMultipart()
 
     message['to'] = to
-    message['from'] = sender
+    message['from'] = "{} <{}>".format(sender_name, sender_email)
     message['subject'] = subject
 
     # Record the MIME types of both parts - text/plain and text/html.
