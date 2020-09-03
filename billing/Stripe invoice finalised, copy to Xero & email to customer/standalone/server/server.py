@@ -39,6 +39,13 @@ from pprint import pprint
 from flask import Flask, render_template, jsonify, request, send_from_directory
 from dotenv import load_dotenv, find_dotenv
 
+import locale
+
+currency = 'en_AU.UTF-8'
+locale.setlocale(locale.LC_ALL, currency)
+conv = locale.localeconv()
+
+
 # Setup Stripe python client library
 load_dotenv(find_dotenv())
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
@@ -65,7 +72,7 @@ env = os.getenv('ENV')
 if env != "production":
     # allow oauth2 loop to run over http (used for local testing only)
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-    # app.debug = True
+    #app.debug = True
 
 
 # configure persistent session cache
@@ -201,17 +208,10 @@ def get_xero_tenant_id():
 @ xero_token_required
 def tenants():
     identity_api = IdentityApi(api_client)
-    accounting_api = AccountingApi(api_client)
 
     available_tenants = []
     for connection in identity_api.get_connections():
         tenant = serialize(connection)
-        if connection.tenant_type == "ORGANISATION":
-            organisations = accounting_api.get_organisations(
-                xero_tenant_id=connection.tenant_id
-            )
-            # tenant["organisations"] = serialize(organisations)
-
         available_tenants.append(tenant)
 
     return render_template(
@@ -261,8 +261,6 @@ def webhook_received():
         data = request_data['data']
         event_type = request_data['type']
 
-        data_object = data['object']
-
     if event_type == 'invoice.paid':
         # Used to provision services after the trial has ended.
         # The status of the invoice will show up as paid. Store the status in your
@@ -298,8 +296,6 @@ def webhook_received():
 
 
 def process_lines(data):
-    quantity_corrected = []
-    amount_decimal = []
     descriptions = []
     quantities = []
     amounts = []
@@ -310,7 +306,6 @@ def process_lines(data):
         sales_accounts.append(sales_account)
         proration = line['proration']
         tiers_mode = line['plan']['tiers_mode']
-        nickname = line['plan']['nickname']
         description = line['description']
         quantity = line['quantity']
         amount = None
@@ -320,7 +315,6 @@ def process_lines(data):
                 tiers_flat_amount = tier['flat_amount']
                 tiers_up_to = tier['up_to']
                 tiers_unit_amount = tier['unit_amount']
-                tiers_flat_up_to = line['plan']['tiers'][0]['up_to']
                 # Tier 1 usage
                 if quantity == 0:
                     print('Skipping invoice line with 0 quantity')
@@ -382,10 +376,7 @@ def process_lines(data):
     print('-----------------------------------')
     print(name)
     print(email_address)
-    # print(status)
-    print("$" + total)
-    # print(year_due, month_due, day_due)
-
+    print('{s}{a}'.format(s=conv['currency_symbol'], a=total))
     line_items = []
     for j, line in enumerate(line_data[0]['descriptions']):
         quantity = line_data[0]['quantities'][j]
@@ -422,61 +413,43 @@ def create_invoices(invoice_number, year_due, month_due, day_due, name, email_ad
             getvalue(created_invoices, "invoices.0.invoice_number", "")
         )
         print(sub_title)
+        contact_number = created_invoices._invoices[0]._contact.contact_id
         invoice_id = created_invoices._invoices[0].invoice_id
         invoice_url = get_online_invoice(xero_tenant_id, invoice_id)
         invoice_pdf_path = get_invoice_pdf(invoice_id)
-        fname = getvalue(created_invoices,
-                         "invoices.0.contact.first_name", "there")
+        fname_default = os.getenv('FNAME_DEFAULT')
+        provider_company_name = os.getenv('PROVIDER_COMPANY_NAME')
+        gmail_api_username = os.getenv('GMAIL_API_USERNAME')
+        fname = created_invoices._invoices[0].contact.first_name
         if fname == '':
-            fname = "there"
-        created_invoices._invoices[0].total
+            fname = fname_default
         invoice_number = created_invoices._invoices[0].invoice_number
-        subject = "Your IT Solver Invoice " + invoice_number
+        subject = "Your {} Invoice {}".format(
+            provider_company_name, invoice_number)
+        total_str = '{s}{a}'.format(s=conv['currency_symbol'], a=total)
         if status == 'paid':
             # TODO Create Xero Payment
             date_paid = "{}-{}-{}".format(year_due, month_due, day_due)
             create_payment(invoice_id, date_paid, total)
-            html = """\
-                <div><a href="https://www.itsolver.net" target="_blank"><img src="https://www.itsolver.net/assets/images/it_solver_logo_horizontal_no_tagline.png"></a></div>
-                <h1>Another Month of Business Made Simple!</h1>
-                <p>Hey {0}, we received your payment. Thanks for using IT Solver to simplify your business with cloud apps and tech support.</p>
-                <p>Your invoice for ${1} is attached.</p>
-                <p>Invoice number: {2}</p>
-                <p>View your bill online: {3}</p>
-                <p>From your online bill you can print a PDF, export a CSV, or create a free login and view your outstanding bills.</p>
-
-                <h3>Questions?</h3>
-                <p><a href="https://www.itsolver.net/contact">Contact us</a> or reply to this email — we'd be happy to lend a hand.</p>
-                
-                <p>💙 IT Solver</p>
-                <a href="https://g.page/it-solver" target="_blank">6a/112 Bloomfield St, Cleveland QLD 4163</a>
-                """.format(fname, total, invoice_number, invoice_url)
+            # For the html multiline environment variable, wrap with single quotes, escape single quotes with a backslash and double-up the curley brackets.
+            message_paid_html = os.getenv('MESSAGE_PAID_HTML')
+            html = message_paid_html.format(
+                fname, total_str, invoice_number, invoice_url)
+            cc = serialize(get_secondary_emails(
+                xero_tenant_id, contact_number))
             message = create_message_with_attachment(
-                sender_name, sender_email, email_address, subject, fname, invoice_number, total, invoice_pdf_path, html)
+                sender_name, sender_email, email_address, cc, subject, fname, invoice_number, invoice_pdf_path, html)
             service = gmail_creds()
-            send_message(service, 'angus@itsolver.net', message)
+            send_message(service, gmail_api_username, message)
             print('Message sent')
         else:
-            html = """\
-                <div><a href="https://www.itsolver.net" target="_blank"><img src="https://www.itsolver.net/assets/images/it_solver_logo_horizontal_no_tagline.png"></a></div>
-                <h1>Another Month of Business Made Simple!</h1>
-                <p>Hey {0}, Thanks for using IT Solver to simplify your business with cloud apps and tech support.</p>
-                <p>Your invoice for ${1} is attached.</p>
-                <p>Note: The balance will be automatically charged so you don't need to take any action.</p>
-                <p>Invoice number: {2}</p>
-                <p>View your bill online: {3}</p>
-                <p>From your online bill you can print a PDF, export a CSV, or create a free login and view your outstanding bills.</p>
-
-                <h3>Questions?</h3>
-                <p><a href="https://www.itsolver.net/contact">Contact us</a> or reply to this email — we'd be happy to lend a hand.</p>
-                
-                <p>💙 IT Solver</p>
-                <a href="https://g.page/it-solver" target="_blank">6a/112 Bloomfield St, Cleveland QLD 4163</a>
-                """.format(fname, total, invoice_number, invoice_url)
+            message_unpaid_html = os.getenv('MESSAGE_UNPAID_HTML')
+            html = message_unpaid_html.format(
+                fname, total_str, invoice_number, invoice_url)
             message = create_message_with_attachment(
-                sender_name, sender_email, email_address, subject, fname, invoice_number, total, invoice_pdf_path, html)
+                sender_name, sender_email, email_address, cc, subject, fname, invoice_number, invoice_pdf_path, html)
             service = gmail_creds()
-            send_message(service, 'angus@itsolver.net', message)
+            send_message(service, gmail_api_username, message)
             print('Message sent')
 
     print('-----------------------------------')
@@ -516,6 +489,19 @@ def get_online_invoice(xero_tenant_id, invoice_id):
     return invoice_url
 
 
+@xero_token_required
+def get_secondary_emails(xero_tenant_id, contact_number):
+    accounting_api = AccountingApi(api_client)
+    secondary_contact_persons = accounting_api.get_contact_by_contact_number(
+        xero_tenant_id, contact_number)._contacts[0].contact_persons
+    secondary_emails = []
+    for person in secondary_contact_persons:
+        email_address = person.email_address
+        secondary_emails.append(email_address)
+    print('cc: {}'.format(secondary_emails))
+    return secondary_emails
+
+
 if __name__ == '__main__':
-    app.run(host="localhost")
+    app.run(host="127.0.0.1")
     app.run(port=5000)
