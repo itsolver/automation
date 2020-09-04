@@ -12,6 +12,11 @@ from email import encoders
 import base64
 import mimetypes
 from urllib.error import HTTPError
+from pathlib import Path
+env_path = Path(
+    r'C:\Users\Test\secrets\itsolver\automation\billing\.gmail_credentials.json')
+pickle_path = Path(
+    r'C:\Users\Test\secrets\itsolver\automation\billing\token.pickle')
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/gmail.send']
@@ -22,19 +27,18 @@ def gmail_creds():
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
+    if os.path.exists(pickle_path):
+        with open(pickle_path, 'rb') as token:
             creds = pickle.load(token)
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                '/Users/angusmclauchlan/.secrets/itsolver/automation/billing/.gmail_credentials.json', SCOPES)
+            flow = InstalledAppFlow.from_client_secrets_file(env_path, SCOPES)
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
-        with open('token.pickle', 'wb') as token:
+        with open(pickle_path, 'wb') as token:
             pickle.dump(creds, token)
 
     return build('gmail', 'v1', credentials=creds)

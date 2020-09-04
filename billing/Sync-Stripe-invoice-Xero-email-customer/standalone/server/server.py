@@ -40,13 +40,16 @@ from flask import Flask, render_template, jsonify, request, send_from_directory
 from dotenv import load_dotenv, find_dotenv
 
 import locale
+from pathlib import Path
 
 currency = 'en_AU.UTF-8'
 locale.setlocale(locale.LC_ALL, currency)
 conv = locale.localeconv()
 
 # Store secrets outside of this repository
-load_dotenv('/Users/angusmclauchlan/.secrets/itsolver/automation/billing/.env')
+xero_oauth_token_path = 'C:/Users/Test/secrets/itsolver/automation/billing/oauth2_token'
+env_path = Path(r'C:\Users\Test\secrets\itsolver\automation\billing') / '.env'
+load_dotenv(dotenv_path=env_path)
 
 
 # Setup Stripe python client library
@@ -116,7 +119,7 @@ api_client = ApiClient(
 @ xero.tokengetter
 @ api_client.oauth2_token_getter
 def obtain_xero_oauth2_token():
-    with open("/Users/angusmclauchlan/.secrets/itsolver/automation/billing/oauth2_token") as json_file:
+    with open(xero_oauth_token_path) as json_file:
         token = json.load(json_file)
         return token
 
@@ -124,7 +127,7 @@ def obtain_xero_oauth2_token():
 @ xero.tokensaver
 @ api_client.oauth2_token_saver
 def store_xero_oauth2_token(token):
-    with open("/Users/angusmclauchlan/.secrets/itsolver/automation/billing/oauth2_token", "w") as outfile:
+    with open(xero_oauth_token_path, 'w') as outfile:
         json.dump(token, outfile)
 
 
