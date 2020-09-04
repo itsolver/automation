@@ -438,8 +438,8 @@ def create_invoices(invoice_number, year_due, month_due, day_due, name, email_ad
             message_paid_html = os.getenv('MESSAGE_PAID_HTML')
             html = message_paid_html.format(
                 fname, total_str, invoice_number)
-            cc = serialize(get_secondary_emails(
-                xero_tenant_id, contact_number))
+            cc = get_secondary_emails(
+                xero_tenant_id, contact_number)
             message = create_message_with_attachment(
                 sender_name, sender_email, email_address, cc, subject, fname, invoice_number, invoice_pdf_path, html)
             service = gmail_creds()
@@ -449,8 +449,8 @@ def create_invoices(invoice_number, year_due, month_due, day_due, name, email_ad
             message_unpaid_html = os.getenv('MESSAGE_UNPAID_HTML')
             html = message_unpaid_html.format(
                 fname, total_str, invoice_number)
-            cc = serialize(get_secondary_emails(
-                xero_tenant_id, contact_number))
+            cc = get_secondary_emails(
+                xero_tenant_id, contact_number)
             message = create_message_with_attachment(
                 sender_name, sender_email, email_address, cc, subject, fname, invoice_number, invoice_pdf_path, html)
             service = gmail_creds()
@@ -506,6 +506,7 @@ def get_secondary_emails(xero_tenant_id, contact_number):
         secondary_emails.append(email_address)
     if secondary_emails:
         print('cc: {}'.format(secondary_emails))
+        secondary_emails = serialize(secondary_emails)
     return secondary_emails
 
 
