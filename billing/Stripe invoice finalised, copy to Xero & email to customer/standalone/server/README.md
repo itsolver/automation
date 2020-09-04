@@ -1,10 +1,10 @@
 # Subscriptions with metered usage
 
-## Requirements## Requirements
+## Requirements
 
 - Python 3
 - [Stripe CLI](https://stripe.com/docs/stripe-cli)
-- [Configured .env file](../README.md)
+- [Configured .env file](.env-example)
 
 ## How to run
 
