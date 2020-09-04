@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv, find_dotenv
 
 # Setup Stripe python client library
-load_dotenv(find_dotenv())
+load_dotenv('/Users/angusmclauchlan/.secrets/itsolver/automation/billing/.env')
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 
 response = stripe.Subscription.create(

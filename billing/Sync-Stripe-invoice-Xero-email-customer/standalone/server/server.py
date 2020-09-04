@@ -45,9 +45,12 @@ currency = 'en_AU.UTF-8'
 locale.setlocale(locale.LC_ALL, currency)
 conv = locale.localeconv()
 
+# Store secrets outside of this repository
+load_dotenv('/Users/angusmclauchlan/.secrets/itsolver/automation/billing/.env')
+
 
 # Setup Stripe python client library
-load_dotenv(find_dotenv())
+
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 stripe.api_version = os.getenv('STRIPE_API_VERSION')
 
@@ -114,7 +117,7 @@ api_client = ApiClient(
 @ xero.tokengetter
 @ api_client.oauth2_token_getter
 def obtain_xero_oauth2_token():
-    with open("oauth2_token") as json_file:
+    with open("/Users/angusmclauchlan/.secrets/itsolver/automation/billing/oauth2_token") as json_file:
         token = json.load(json_file)
         return token
 
@@ -122,7 +125,7 @@ def obtain_xero_oauth2_token():
 @ xero.tokensaver
 @ api_client.oauth2_token_saver
 def store_xero_oauth2_token(token):
-    with open("oauth2_token", "w") as outfile:
+    with open("/Users/angusmclauchlan/.secrets/itsolver/automation/billing/oauth2_token", "w") as outfile:
         json.dump(token, outfile)
 
 
