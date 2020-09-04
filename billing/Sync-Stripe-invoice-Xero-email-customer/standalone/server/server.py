@@ -75,7 +75,7 @@ env = os.getenv('ENV')
 if env != "production":
     # allow oauth2 loop to run over http (used for local testing only)
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-    #app.debug = True
+    app.debug = True
 
 
 # configure persistent session cache
@@ -104,7 +104,6 @@ xero = oauth.remote_app(
 # configure xero-python sdk client
 api_client = ApiClient(
     Configuration(
-        debug=app.config["DEBUG"],
         oauth2_token=OAuth2Token(
             client_id=os.getenv("CLIENT_ID"), client_secret=os.getenv("CLIENT_SECRET")
         ),
