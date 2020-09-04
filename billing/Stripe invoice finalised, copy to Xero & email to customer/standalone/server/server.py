@@ -469,11 +469,12 @@ def get_invoice_pdf(invoice_id):
 
 @xero_token_required
 def create_payment(invoice_id, date_paid, amount_paid):
+    bank_account_id = os.getenv('BANK_ACCOUNT_ID')
     xero_tenant_id = get_xero_tenant_id()
     accounting_api = AccountingApi(api_client)
     payment = {
         "Invoice": {"InvoiceID": invoice_id},
-        "Account": {"AccountID": "BANK_ACCOUNT_ID"},
+        "Account": {"AccountID": bank_account_id},
         "Date": date_paid,
         "Amount": amount_paid
     }
