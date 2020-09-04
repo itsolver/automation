@@ -1,4 +1,4 @@
-# Subscriptions with metered usage
+# Stripe invoice finalised, copy to Xero & email to customer
 
 ## Requirements
 
@@ -27,12 +27,12 @@ python3 -m venv env
 2. Install dependencies
 
 ```
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 3. Export and run the application
 
-4. While in development, use Stripe CLI to forward events to your local webhook so you don't have to worry about port forwarding etc.
+4. While in development, in another terminal window, use Stripe CLI to forward events to your local webhook so you don't have to worry about port forwarding etc.
 
 ```
 stripe listen --forward-to localhost:5000/stripe-webhook
@@ -48,7 +48,7 @@ python3 -m flask run --port=5000
 **Windows (PowerShell)**
 
 ```
-$env:FLASK_APP=“server.py"
+$env:FLASK_APP="server.py"
 python3 -m flask run --port=5000
 ```
 
