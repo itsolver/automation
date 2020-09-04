@@ -430,8 +430,8 @@ def create_invoices(invoice_number, year_due, month_due, day_due, name, email_ad
         total_str = '{s}{a}'.format(s=conv['currency_symbol'], a=total)
         if status == 'paid':
             # ISSUE: Payment successfully created, shows on invoice but not visible in bank rec page. Disabled for now, and removed Xero online url link from html template.
-            #date_paid = "{}-{}-{}".format(year_due, month_due, day_due)
-            #create_payment(invoice_id, date_paid, total)
+            date_paid = "{}-{}-{}".format(year_due, month_due, day_due)
+            create_payment(invoice_id, date_paid, total)
             # For the html multiline environment variable, wrap with single quotes, escape single quotes with a backslash and double-up the curley brackets.
             message_paid_html = os.getenv('MESSAGE_PAID_HTML')
             html = message_paid_html.format(
@@ -473,7 +473,7 @@ def create_payment(invoice_id, date_paid, amount_paid):
     accounting_api = AccountingApi(api_client)
     payment = {
         "Invoice": {"InvoiceID": invoice_id},
-        "Account": {"Code": os.getenv('BANK_ACCOUNT_CODE')},
+        "Account": {"AccountID": "BANK_ACCOUNT_ID"},
         "Date": date_paid,
         "Amount": amount_paid
     }
@@ -501,7 +501,8 @@ def get_secondary_emails(xero_tenant_id, contact_number):
     for person in secondary_contact_persons:
         email_address = person.email_address
         secondary_emails.append(email_address)
-    print('cc: {}'.format(secondary_emails))
+    if secondary_emails:
+        print('cc: {}'.format(secondary_emails))
     return secondary_emails
 
 
