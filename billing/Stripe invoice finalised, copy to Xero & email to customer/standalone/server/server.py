@@ -416,7 +416,7 @@ def create_invoices(invoice_number, year_due, month_due, day_due, name, email_ad
         print(sub_title)
         contact_number = created_invoices._invoices[0]._contact.contact_id
         invoice_id = created_invoices._invoices[0].invoice_id
-        invoice_url = get_online_invoice(xero_tenant_id, invoice_id)
+        #invoice_url = get_online_invoice(xero_tenant_id, invoice_id)
         invoice_pdf_path = get_invoice_pdf(invoice_id)
         fname_default = os.getenv('FNAME_DEFAULT')
         provider_company_name = os.getenv('PROVIDER_COMPANY_NAME')
@@ -435,7 +435,7 @@ def create_invoices(invoice_number, year_due, month_due, day_due, name, email_ad
             # For the html multiline environment variable, wrap with single quotes, escape single quotes with a backslash and double-up the curley brackets.
             message_paid_html = os.getenv('MESSAGE_PAID_HTML')
             html = message_paid_html.format(
-                fname, total_str, invoice_number, invoice_url)
+                fname, total_str, invoice_number)
             cc = serialize(get_secondary_emails(
                 xero_tenant_id, contact_number))
             message = create_message_with_attachment(
@@ -446,7 +446,7 @@ def create_invoices(invoice_number, year_due, month_due, day_due, name, email_ad
         else:
             message_unpaid_html = os.getenv('MESSAGE_UNPAID_HTML')
             html = message_unpaid_html.format(
-                fname, total_str, invoice_number, invoice_url)
+                fname, total_str, invoice_number)
             cc = serialize(get_secondary_emails(
                 xero_tenant_id, contact_number))
             message = create_message_with_attachment(
