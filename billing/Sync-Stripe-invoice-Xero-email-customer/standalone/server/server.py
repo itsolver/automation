@@ -422,7 +422,6 @@ def create_invoices(invoice_number, year_due, month_due, day_due, name, email_ad
         contact_number = created_invoices._invoices[0]._contact.contact_id
         invoice_id = created_invoices._invoices[0].invoice_id
         #invoice_url = get_online_invoice(xero_tenant_id, invoice_id)
-        invoice_pdf_path = get_invoice_pdf(invoice_id)
         fname_default = os.getenv('FNAME_DEFAULT')
         provider_company_name = os.getenv('PROVIDER_COMPANY_NAME')
         gmail_api_username = os.getenv('GMAIL_API_USERNAME')
@@ -443,6 +442,7 @@ def create_invoices(invoice_number, year_due, month_due, day_due, name, email_ad
                 fname, total_str, invoice_number)
             cc = get_secondary_emails(
                 xero_tenant_id, contact_number)
+            invoice_pdf_path = get_invoice_pdf(invoice_id)
             message = create_message_with_attachment(
                 sender_name, sender_email, email_address, cc, subject, fname, invoice_number, invoice_pdf_path, html)
             service = gmail_creds()
@@ -454,6 +454,7 @@ def create_invoices(invoice_number, year_due, month_due, day_due, name, email_ad
                 fname, total_str, invoice_number)
             cc = get_secondary_emails(
                 xero_tenant_id, contact_number)
+            invoice_pdf_path = get_invoice_pdf(invoice_id)
             message = create_message_with_attachment(
                 sender_name, sender_email, email_address, cc, subject, fname, invoice_number, invoice_pdf_path, html)
             service = gmail_creds()
