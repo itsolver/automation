@@ -263,13 +263,13 @@ def webhook_received():
         data = request_data['data']
         event_type = request_data['type']
 
-    if event_type == 'invoice.paid':
+    # if event_type == 'invoice.paid':
         # Used to provision services after the trial has ended.
         # The status of the invoice will show up as paid. Store the status in your
         # database to reference when a user accesses your service to avoid hitting rate
         # limits.
         # print(data)
-        print("invoice.paid")
+        # print("invoice.paid")
     if event_type == 'invoice.payment_failed':
         # If the payment fails or the customer does not have a valid payment method,
         # an invoice.payment_failed event is sent, the subscription becomes past_due.
@@ -283,16 +283,16 @@ def webhook_received():
         # or store them locally to reference to avoid hitting Stripe rate limits.
         process_lines(data)
 
-    if event_type == 'customer.subscription.deleted':
+    # if event_type == 'customer.subscription.deleted':
         # handle subscription cancelled automatically based
         # upon your subscription settings. Or if the user cancels it.
         # print(data)
-        print("customer.subscription.deleted")
+        # print("customer.subscription.deleted")
 
-    if event_type == 'customer.subscription.trial_will_end':
+    # if event_type == 'customer.subscription.trial_will_end':
         # Send notification to your user that the trial will end
         # print(data)
-        print("customer.subscription.trial_will_end")
+        # print("customer.subscription.trial_will_end")
 
     return jsonify({'status': 'success'})
 
