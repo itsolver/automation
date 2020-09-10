@@ -7,7 +7,6 @@ from pathlib import Path
 env_path = Path(r'C:\Users\Test\secrets\itsolver\automation\billing') / '.env'
 load_dotenv(dotenv_path=env_path)
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
-print(stripe.api_key)
 response = stripe.Subscription.create(
     customer="cus_HdJIyps5W3VUJX",
     items=[
