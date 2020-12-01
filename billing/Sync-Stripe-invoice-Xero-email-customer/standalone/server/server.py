@@ -365,7 +365,7 @@ def process_lines(data):
             descriptions.append(description)
             quantities.append(quantity)
             amounts.append(amount)
-
+    hosted_invoice_url = data['object']['hosted_invoice_url']
     invoice_number = data['object']['number']
     name = data['object']['customer_name']
     email_address = data['object']['customer_email']
@@ -390,11 +390,11 @@ def process_lines(data):
         line_items.append(LineItem(account_code=sales_account, description=line, unit_amount=Decimal(
             amount), quantity=Decimal(quantity), tax_type="OUTPUT"))
     create_invoices(invoice_number, year_due, month_due,
-                    day_due, name, email_address, line_items, status, total, branding_theme_id)
+                    day_due, name, email_address, line_items, status, total, branding_theme_id, hosted_invoice_url)
 
 
 @ app.route("/create_invoices")
-def create_invoices(invoice_number, year_due, month_due, day_due, name, email_address, line_items, status, total, branding_theme_id):
+def create_invoices(invoice_number, year_due, month_due, day_due, name, email_address, line_items, status, total, branding_theme_id, hosted_invoice_url):
     xero_tenant_id = get_xero_tenant_id()
     accounting_api = AccountingApi(api_client)
 
@@ -448,10 +448,10 @@ def create_invoices(invoice_number, year_due, month_due, day_due, name, email_ad
             service = gmail_creds()
             send_message(service, gmail_api_username, message)
             print('Message sent')
-        else:
+        else: #unpaid email template has stripe hosted url to payment page
             message_unpaid_html = os.getenv('MESSAGE_UNPAID_HTML')
             html = message_unpaid_html.format(
-                fname, total_str, invoice_number)
+                fname, total_str, invoice_number, hosted_invoice_url)
             cc = get_secondary_emails(
                 xero_tenant_id, contact_number)
             invoice_pdf_path = get_invoice_pdf(invoice_id)
