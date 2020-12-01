@@ -426,7 +426,7 @@ def create_invoices(invoice_number, year_due, month_due, day_due, name, email_ad
         provider_company_name = os.getenv('PROVIDER_COMPANY_NAME')
         gmail_api_username = os.getenv('GMAIL_API_USERNAME')
         fname = created_invoices._invoices[0].contact.first_name
-        if fname == '':
+        if fname == None:
             fname = fname_default
         invoice_number = created_invoices._invoices[0].invoice_number
         subject = "Your {} Invoice {}".format(
