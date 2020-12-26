@@ -311,6 +311,8 @@ def process_lines(data):
             line, 'plan.metadata.sales_account', '203')  # TODO: check tiered pricing isn't always defaulting because incorrect path to sales_account metadata
         sales_accounts.append(sales_account)
         proration = line['proration']
+        # ! tiers_mode fails with Type error 'NoneType' object is not scriptable. https://forum.freecodecamp.org/t/how-can-i-solve-typeerror-nonetype-object-is-not-subscriptable-error/345991
+        try:
         tiers_mode = line['plan']['tiers_mode']
         description = line['description']
         quantity = line['quantity']
