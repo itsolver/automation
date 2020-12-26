@@ -2,7 +2,7 @@
 
 """
 server.py
-Stripe Recipe.
+Stripe Recipe.s
 Python 3.6 or newer required.
 """
 
@@ -313,7 +313,9 @@ def process_lines(data):
         proration = line['proration']
         # ! tiers_mode fails with Type error 'NoneType' object is not scriptable. https://forum.freecodecamp.org/t/how-can-i-solve-typeerror-nonetype-object-is-not-subscriptable-error/345991
         try:
-        tiers_mode = line['plan']['tiers_mode']
+            tiers_mode = line['plan']['tiers_mode']
+        except:
+            tiers_mode = None
         description = line['description']
         quantity = line['quantity']
         amount = None
@@ -450,7 +452,7 @@ def create_invoices(invoice_number, year_due, month_due, day_due, name, email_ad
             service = gmail_creds()
             send_message(service, gmail_api_username, message)
             print('Message sent')
-        else: #unpaid email template has stripe hosted url to payment page
+        else:  # unpaid email template has stripe hosted url to payment page
             message_unpaid_html = os.getenv('MESSAGE_UNPAID_HTML')
             html = message_unpaid_html.format(
                 fname, total_str, invoice_number, hosted_invoice_url)
